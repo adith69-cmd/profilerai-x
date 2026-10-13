@@ -1,0 +1,22 @@
+{
+  "n_eval": 50,
+  "fine_tuned_v2": {
+    "format_ok_rate": 1.0,
+    "avg_questions": 10.0,
+    "avg_skill_coverage": 0.33333333333333337
+  },
+  "samples": [
+    {
+      "profile": "CANDIDATE PROFILE:\n- Role: Full-Stack Engineer\n- Years of experience: 4\n- Skills: React, FastAPI, PostgreSQL\n\nREFERENCE Q/A PAIRS:\n1. Q: How do you implement search functionality in a web application?\n   A: Implementing search functionality in a web application typically involves using client-side o",
+      "v2": "1. What is meant by \"server-side rendering\", and how can you implement it?/TEM\n2. Explain how React uses context API to manage shared state between components.\n3. What is the difference between synchronous and asynchronous programming in React Native?\n4. How does React handle state management in an application?\n5. Describe the differences between different types of UI components (React components, Angular components) and when to use each.\n6. How do you debug a React application using the browser's developer tools?\n7. How do you handle form validation and error handling in a React application?\n"
+    },
+    {
+      "profile": "CANDIDATE PROFILE:\n- Role: Backend Engineer\n- Years of experience: 5\n- Skills: Go, gRPC, Redis, Kubernetes\n\nREFERENCE Q/A PAIRS:\n1. Q: What is the purpose of caching in optimization algorithms?\n   A: The primary purpose of caching in optimization algorithms is to store previously computed solutions ",
+      "v2": "1. Can you explain the concept of Big O notation?\n2. Describe the process of creating a deadlock detection algorithm.\n3. How does sorting work, and what are some common sorting algorithms?\n4. Explain how to perform a binary search algorithm on a sorted linked list\n5. What is a hash function, and why is it important in programming?\n6. Which software engineering principle states that it's better to write small, simple programs than large, complex ones?\n7. What is the time complexity of a merge sort algorithm?\n8. How would you find the maximum value in an array using C++?\n9. How do you implement "
+    },
+    {
+      "profile": "CANDIDATE PROFILE:\n- Role: Full-Stack Engineer\n- Years of experience: 4\n- Skills: React, FastAPI, PostgreSQL\n\nREFERENCE Q/A PAIRS:\n1. Q: How do you implement data encryption in a database?\n   A: You can implement data encryption in a database using techniques such as column-level encryption, row-lev",
+      "v2": "1. What is meant by \"server-side rendering\", and how can you implement it?/TEM\n2. Explain how React uses hooks to manage side effects (e.g., useState, useEffect).\n3. How do you optimize the performance of a React or Angular application for large-scale web use cases?\n4. Describe the differences between different types of UI components (React components, Angular components) and when to use each.\n5. Can you explain the process of implementing single-page navigation using React Router?/TEM\n6. How do you debug a React application using the browser's developer tools?\n7. How do you implement search f"
+    }
+  ]
+}

@@ -1,10 +1,8 @@
-"""Synthesize instruction-tuning data for the interview-question generator.
+"""Synthesize instruction-tuning data with SKILL-ALIGNED sampling.
 
-For each example:
-  - Pick a domain (Ai / General_Programming / Web_Development)
-  - Sample 3 reference Q/A pairs from that domain
-  - Synthesize a candidate profile matching the domain
-  - Target = 10 *different* questions from the same domain (held out)
+v2 fix: references and targets are drawn only from rows whose text shares
+at least one skill with the profile. This teaches the model skill-conditioning,
+not just "output 10 questions."
 
 Output: JSONL, chat-format, one example per line.
 Split: 80% train / 10% val / 10% test.
@@ -15,11 +13,11 @@ import random
 from pathlib import Path
 from datasets import load_dataset
 
-OUT_DIR = Path("data/finetune")
+OUT_DIR = Path("data/finetune_v2")
 N_EXAMPLES = 2000
 SEED = 42
 N_REFERENCE = 3
-N_TARGETS = 10   # matches ProfilerAI v1 output shape (10 questions per resume)
+N_TARGETS = 10
 
 PROFILES = {
     "Ai": [
@@ -50,16 +48,12 @@ SYSTEM_PROMPT = (
 )
 
 
-def format_profile(p: dict) -> str:
-    return (
-        f"CANDIDATE PROFILE:\n"
-        f"- Role: {p['role']}\n"
-        f"- Years of experience: {p['years']}\n"
-        f"- Skills: {p['skills']}"
-    )
+def fmt_profile(p: dict) -> str:
+    return (f"CANDIDATE PROFILE:\n- Role: {p['role']}\n"
+            f"- Years of experience: {p['years']}\n- Skills: {p['skills']}")
 
 
-def format_references(refs: list[dict]) -> str:
+def fmt_refs(refs: list[dict]) -> str:
     lines = ["REFERENCE Q/A PAIRS:"]
     for i, r in enumerate(refs, 1):
         lines.append(f"{i}. Q: {r['question']}")
@@ -67,23 +61,24 @@ def format_references(refs: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def format_targets(targets: list[dict]) -> str:
-    return "\n".join(f"{i}. {t['question']}" for i, t in enumerate(targets, 1))
+def fmt_targets(tgts: list[dict]) -> str:
+    return "\n".join(f"{i}. {t['question']}" for i, t in enumerate(tgts, 1))
 
 
-def build_example(domain: str, pool: list[dict], rng: random.Random) -> dict:
+def row_text(r: dict) -> str:
+    return (r["question"] + " " + r["answer"]).lower()
+
+
+def build_example(profile: dict, pool: list[dict], rng: random.Random) -> dict:
     sampled = rng.sample(pool, N_REFERENCE + N_TARGETS)
     refs, targets = sampled[:N_REFERENCE], sampled[N_REFERENCE:]
-    profile = rng.choice(PROFILES[domain])
-
-    user_content = f"{format_profile(profile)}\n\n{format_references(refs)}"
     return {
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-            {"role": "assistant", "content": format_targets(targets)},
+            {"role": "user", "content": f"{fmt_profile(profile)}\n\n{fmt_refs(refs)}"},
+            {"role": "assistant", "content": fmt_targets(targets)},
         ],
-        "metadata": {"domain": domain},
+        "metadata": {"domain": profile["_domain"], "profile": profile["role"]},
     }
 
 
@@ -100,19 +95,34 @@ def main() -> None:
     for d, v in by_domain.items():
         print(f"       {d}: {len(v)}")
 
+    # Precompute per-profile skill-matched pools
+    profile_pools: dict[tuple[str, int], list[dict]] = {}
+    print("\n[filter] skill-matched pool sizes")
     need = N_REFERENCE + N_TARGETS
-    domains = [d for d, v in by_domain.items() if len(v) >= need]
-    if not domains:
-        raise RuntimeError(f"No domain has >= {need} rows.")
+    for domain, pool in by_domain.items():
+        for pi, profile in enumerate(PROFILES[domain]):
+            skills = [s.strip().lower() for s in profile["skills"].split(",")]
+            matched = [r for r in pool
+                       if any(s in row_text(r) for s in skills)]
+            if len(matched) < need:
+                print(f"  {domain:22s} / {profile['role']:22s}: "
+                      f"{len(matched):4d} -> FALLBACK to domain pool")
+                matched = pool
+            else:
+                print(f"  {domain:22s} / {profile['role']:22s}: {len(matched):4d}")
+            profile_pools[(domain, pi)] = matched
 
+    # Build examples
+    keys = list(profile_pools.keys())
     examples: list[dict] = []
     for _ in range(N_EXAMPLES):
-        domain = rng.choice(domains)
-        examples.append(build_example(domain, by_domain[domain], rng))
+        domain, pi = rng.choice(keys)
+        profile = dict(PROFILES[domain][pi])
+        profile["_domain"] = domain
+        examples.append(build_example(profile, profile_pools[(domain, pi)], rng))
 
     rng.shuffle(examples)
-    n = len(examples)
-    n_train, n_val = int(0.8 * n), int(0.1 * n)
+    n = len(examples); n_train, n_val = int(0.8 * n), int(0.1 * n)
     splits = {
         "train": examples[:n_train],
         "val":   examples[n_train:n_train + n_val],
@@ -130,7 +140,7 @@ def main() -> None:
     print("\n[sample example]")
     for m in splits["train"][0]["messages"]:
         print(f"\n--- {m['role']} ---")
-        print(m["content"][:600])
+        print(m["content"][:400])
 
 
 if __name__ == "__main__":
